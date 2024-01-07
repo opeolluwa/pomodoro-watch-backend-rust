@@ -1,17 +1,11 @@
 [package]
-name = "pmd"
+name = "pomodoro-backend-rust"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-axum = "0.7.3"
-dotenv = "0.15.0"
-fred = "7.1.0"
-serde = { version = "1.0.194", features = ["derive"] }
-tokio = { version = "1.35.1", features = ["full"] }
-tower-http = { version = "0.5.0", features = ["cors"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "any", "postgres"] }
+axum = "0.6.20"
+shuttle-axum = "0.35.0"
+shuttle-runtime = "0.35.0"
+tokio = "1.28.2"
+tracing = "0.1.40"
