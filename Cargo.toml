@@ -17,3 +17,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "any", "postgres"] }
 shuttle-aws-rds = { version = "0.35.2", features = ["postgres-rustls"] }
 shuttle-shared-db = { version = "0.35.1", features = ["postgres"] }
+uuid = "1.6.1"
+bcrypt = "0.15.0"
