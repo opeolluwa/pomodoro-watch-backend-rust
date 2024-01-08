@@ -38,8 +38,8 @@ From the code root directory, execute `docker compose up`
 
 
 ## Documentation
-The software Architecture is documented in the [Docs.md](./Docs.md) file
-The RESTful API is documented at [https://documenter.getpostman.com/view/18058225/2s9YsJBY6N](https://documenter.getpostman.com/view/18058225/2s9YsJBY6N)
+- The software Architecture is documented in the [Docs.md](./Docs.md) file
+- The RESTful API is documented at [https://documenter.getpostman.com/view/18058225/2s9YsJBY6N](https://documenter.getpostman.com/view/18058225/2s9YsJBY6N)
 ## License
 
 This project is licensed under the   GNU GENERAL PUBLIC License - see the [License](./LICENSE) file for details
