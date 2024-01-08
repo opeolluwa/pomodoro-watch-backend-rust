@@ -43,6 +43,9 @@ pub fn pomodoro_routes() -> Router<AppState> {
     Router::new()
         .route("/:user_id", get(PomodoroHandlers::get_records))
         .route("/:user_id/new", post(PomodoroHandlers::save_record))
-        .route("/:user_id/:record_id", put(PomodoroHandlers::update_record) )
-        .route("/:user_id/:record_id", delete(PomodoroHandlers::delete_record))
+        .route("/:user_id/:record_id", put(PomodoroHandlers::update_record))
+        .route(
+            "/:user_id/:record_id",
+            delete(PomodoroHandlers::delete_record),
+        )
 }
