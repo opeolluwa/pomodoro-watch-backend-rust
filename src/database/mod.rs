@@ -1,3 +1,1 @@
-mod validators;
-
-fn main() {}
+pub mod models;
