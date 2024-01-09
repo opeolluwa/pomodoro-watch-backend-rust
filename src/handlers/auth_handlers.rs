@@ -1,5 +1,5 @@
 use crate::database::models::UserInformation;
-use crate::pkg::{AppState, SignupRequest};
+use crate::pkg::{ApiResponse, AppState, SignupRequest};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -10,7 +10,7 @@ use sqlx::query;
 pub async fn sign_up(
     State(state): State<AppState>,
     Json(data): Json<SignupRequest>,
-) -> impl IntoResponse{
+) -> impl IntoResponse {
     let new_user = UserInformation::new(
         &data.full_name,
         &data.password,
@@ -30,7 +30,11 @@ pub async fn sign_up(
     .await;
 
     match query {
-        Ok(record) => Ok((StatusCode::CREATED, Json(record))),
+        Ok(record) => Ok((
+            StatusCode::CREATED,
+            Json(data)
+            // Json(ApiResponse::new(record, "successfully created you account")),
+        )),
         Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
     }
     // (StatusCode::OK, Json(data))

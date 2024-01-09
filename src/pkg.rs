@@ -30,3 +30,19 @@ pub struct ForgottenPasswordRequest {
 pub struct OtpRequest {
     pub otp: String,
 }
+
+pub struct ApiResponse<T> {
+    pub message: String,
+    pub data: T,
+    pub success: bool,
+}
+
+impl<T:Send+ Clone> ApiResponse<T> {
+    pub fn new(data: T, message: &str) -> ApiResponse<T> {
+        Self {
+            data,
+            message: message.to_string(),
+            success: true,
+        }
+    }
+}
