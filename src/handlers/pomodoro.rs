@@ -1,5 +1,3 @@
-use crate::pkg::AppState;
-use axum::extract::State;
 pub struct PomodoroHandlers;
 
 impl PomodoroHandlers {

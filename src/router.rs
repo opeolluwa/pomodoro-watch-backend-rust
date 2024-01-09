@@ -1,37 +1,33 @@
-use crate::handlers::{
-    auth_handlers::AuthHandlers, pomodoro::PomodoroHandlers, user::UserInformationHandler,
-};
-use crate::pkg;
+use crate::handlers::{auth_handlers, pomodoro::PomodoroHandlers, user::UserInformationHandler};
+
 use crate::pkg::AppState;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 
-pub fn auth_routes() -> Router<AppState> {
-    Router::new()
-        .route("/sign-up", post(AuthHandlers::sign_up))
-        .route("/verify", post(AuthHandlers::verify_email))
-        .route(
-            "/verify/new-token",
-            get(AuthHandlers::request_new_verification_token),
-        )
-        .nest("/password-reset", password_reset_routes())
-        .route("/login", post(AuthHandlers::login))
-        .route("/refresh-token", get(AuthHandlers::refresh_token))
-        .route("/logout", post(AuthHandlers::logout))
-}
-
-fn password_reset_routes() -> Router<AppState> {
-    Router::new()
-        .route("/", post(AuthHandlers::password_reset))
+pub async fn auth_routes() -> Router<AppState> {
+    let password_reset_routes = Router::new()
+        .route("/", post(auth_handlers::password_reset))
         .route(
             "/confirm-token",
-            post(AuthHandlers::confirm_password_reset_token),
+            post(auth_handlers::confirm_password_reset_token),
         )
-        .route("/new-password", post(AuthHandlers::set_new_password))
+        .route("/new-password", post(auth_handlers::set_new_password));
+
+    Router::new()
+        .route("/sign-up", post(auth_handlers::sign_up))
+        .route("/verify", post(auth_handlers::verify_email))
+        .route(
+            "/verify/new-token",
+            get(auth_handlers::request_new_verification_token),
+        )
+        .nest("/password-reset", password_reset_routes)
+        .route("/login", post(auth_handlers::login))
+        .route("/refresh-token", get(auth_handlers::refresh_token))
+        .route("/logout", post(auth_handlers::logout))
 }
 
 // the user profile routes
-pub fn user_information_routes() -> Router<AppState> {
+pub async fn user_information_routes() -> Router<AppState> {
     Router::new().route(
         "/profile",
         get(UserInformationHandler::get_profile).put(UserInformationHandler::update_profile),
@@ -39,7 +35,7 @@ pub fn user_information_routes() -> Router<AppState> {
 }
 
 // the pomodoro endpoint
-pub fn pomodoro_routes() -> Router<AppState> {
+pub async fn pomodoro_routes() -> Router<AppState> {
     Router::new()
         .route("/:user_id", get(PomodoroHandlers::get_records))
         .route("/:user_id/new", post(PomodoroHandlers::save_record))
