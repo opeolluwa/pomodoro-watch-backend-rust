@@ -1,21 +1,24 @@
 use crate::database::models::UserInformation;
-use crate::pkg::{ApiResponse, AppState, SignupRequest};
+use crate::pkg::{
+    jwt::JwtClaims, ApiResponse, AppState, NewVerificationTokenRequest, SignupRequest,
+    VerifyEmailRequest,
+};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{debug_handler, Json};
-use sqlx::query;
+use serde_json::json;
 
 #[debug_handler(state = AppState)]
 pub async fn sign_up(
     State(state): State<AppState>,
-    Json(data): Json<SignupRequest>,
+    Json(payload): Json<SignupRequest>,
 ) -> impl IntoResponse {
     let new_user = UserInformation::new(
-        &data.full_name,
-        &data.password,
-        &data.email,
-        &data.occupation,
+        &payload.full_name,
+        &payload.password,
+        &payload.email,
+        &payload.occupation,
     )
     .await;
     let query = sqlx::query_as::<_, UserInformation>(
@@ -30,18 +33,34 @@ pub async fn sign_up(
     .await;
 
     match query {
-        Ok(record) => Ok((
-            StatusCode::CREATED,
-            Json(data)
-            // Json(ApiResponse::new(record, "successfully created you account")),
-        )),
+        Ok(data) => {
+            // sign a new jwt
+            let claim = JwtClaims::new(&data.email).gen_token();
+
+            Ok((
+                StatusCode::CREATED,
+                Json(ApiResponse::new(
+                    json!({"token":claim}),
+                    "successfully created user accout",
+                )),
+            ))
+        }
         Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
     }
-    // (StatusCode::OK, Json(data))
 }
 
-pub async fn verify_email() {}
-pub async fn request_new_verification_token() {}
+pub async fn verify_email(
+    State(state): State<AppState>,
+    Json(payload): Json<VerifyEmailRequest>,
+) -> impl IntoResponse {
+}
+
+pub async fn request_new_verification_token(
+    State(state): State<AppState>,
+    Json(payload): Json<NewVerificationTokenRequest>,
+) -> impl IntoResponse {
+}
+
 pub async fn password_reset() {}
 pub async fn confirm_password_reset_token() {}
 pub async fn set_new_password() {}

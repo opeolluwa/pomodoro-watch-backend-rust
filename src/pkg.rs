@@ -1,3 +1,6 @@
+pub mod jwt;
+pub mod mailer;
+
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPool;
 
@@ -16,6 +19,18 @@ pub struct SignupRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyEmailRequest {
+    pub otp: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewVerificationTokenRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LoginRequest {
     email: String,
     password: String,
@@ -31,13 +46,14 @@ pub struct OtpRequest {
     pub otp: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub message: String,
     pub data: T,
     pub success: bool,
 }
 
-impl<T:Send+ Clone> ApiResponse<T> {
+impl<T: Send + Clone> ApiResponse<T> {
     pub fn new(data: T, message: &str) -> ApiResponse<T> {
         Self {
             data,

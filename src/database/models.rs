@@ -9,6 +9,7 @@ use bcrypt::{hash, DEFAULT_COST};
 pub struct UserInformation {
     pub id: Uuid,
     pub full_name: String,
+    #[serde(skip_serializing)]
     pub password: String,
     pub email: String,
     pub occupation: String,

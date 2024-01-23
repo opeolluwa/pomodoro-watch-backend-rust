@@ -1,22 +1,30 @@
-use axum::{routing::get, Router};
+use axum::{
+    http::{
+        header::{ACCEPT, AUTHORIZATION, ORIGIN},
+        Method,
+    },
+    routing::get,
+    Router,
+};
 use dotenv::dotenv;
 use shuttle_runtime::CustomError;
 use sqlx::postgres::PgPool;
+use tower_http::cors::{Any, CorsLayer};
 
 mod database;
 mod handlers;
 mod pkg;
 mod router;
-pub mod validators;
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
 
-    // let cors = CorsLayer::new()
-    //     .allow_credentials(true)
-    //     .allow_methods(vec![Method::GET, Method::POST, Method::PUT, Method::DELETE])
-    //     .allow_headers(vec![ORIGIN, AUTHORIZATION, ACCEPT]).allow_origin(Any);
+    let cors = CorsLayer::new()
+        .allow_credentials(true)
+        .allow_methods(Any)
+        .allow_headers(Any)
+        .allow_origin(Any);
 
     sqlx::migrate!()
         .run(&pool)
