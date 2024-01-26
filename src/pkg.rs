@@ -49,15 +49,15 @@ pub struct OtpRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub message: String,
-    pub data: T,
+    pub data: Option<T>,
     pub success: bool,
 }
 
 impl<T: Send + Clone> ApiResponse<T> {
     pub fn new(data: T, message: &str) -> ApiResponse<T> {
-        Self {
-            data,
+        ApiResponse {
             message: message.to_string(),
+            data: Some(data),
             success: true,
         }
     }

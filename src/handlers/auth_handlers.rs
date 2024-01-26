@@ -1,15 +1,14 @@
 use crate::database::models::UserInformation;
+use crate::pkg::mailer::{EmailTemplate, Mailer};
 use crate::pkg::{
     jwt::JwtClaims, ApiResponse, AppState, NewVerificationTokenRequest, SignupRequest,
-    VerifyEmailRequest,
 };
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::{debug_handler, Json};
+use axum::Json;
 use serde_json::json;
 
-#[debug_handler(state = AppState)]
 pub async fn sign_up(
     State(state): State<AppState>,
     Json(payload): Json<SignupRequest>,
@@ -34,13 +33,15 @@ pub async fn sign_up(
 
     match query {
         Ok(data) => {
-            // sign a new jwt
-            let claim = JwtClaims::new(&data.email).gen_token();
+            let jwt_token = JwtClaims::new(&data.email).gen_token();
+            Mailer::new(&data.email, EmailTemplate::VerifyEmail, Some(&data))
+                .send_email()
+                .await;
 
             Ok((
                 StatusCode::CREATED,
                 Json(ApiResponse::new(
-                    json!({"token":claim}),
+                    json!({"token":jwt_token}),
                     "successfully created user accout",
                 )),
             ))
@@ -51,8 +52,29 @@ pub async fn sign_up(
 
 pub async fn verify_email(
     State(state): State<AppState>,
-    Json(payload): Json<VerifyEmailRequest>,
-) -> impl IntoResponse {
+claim: JwtClaims,
+) -> Result<impl IntoResponse, (StatusCode, String)>{
+    let query = sqlx::query_as::<_, UserInformation>(
+        "SELECT * FROM user_information WHERE email = $1",
+    )
+    .bind(&claim.sub)
+    .fetch_one(&state.pool)
+    .await;
+
+    match query {
+        Ok(_) => {
+         
+            Ok((
+                StatusCode::CREATED,
+                Json(ApiResponse::new(
+                    None::<()>,
+                    "account verified successfully",
+                )),
+            ))
+        }
+        Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
+    }
+    
 }
 
 pub async fn request_new_verification_token(

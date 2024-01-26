@@ -1,8 +1,4 @@
 use axum::{
-    http::{
-        header::{ACCEPT, AUTHORIZATION, ORIGIN},
-        Method,
-    },
     routing::get,
     Router,
 };
@@ -16,12 +12,13 @@ mod handlers;
 mod pkg;
 mod router;
 
+
 #[shuttle_runtime::main]
-async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
+async fn axum(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
     dotenv().ok();
 
     let cors = CorsLayer::new()
-        .allow_credentials(true)
+        // .allow_credentials(Any)
         .allow_methods(Any)
         .allow_headers(Any)
         .allow_origin(Any);
@@ -35,9 +32,9 @@ async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::Shut
     let app = Router::new()
         .route("/", get(handlers::health_check))
         .nest("/v1/auth", router::auth_routes().await)
-        // .nest("/v1/pomodoro", router::pomodoro_routes())
-        // .nest("/v1/user", router::user_information_routes())
-        // .layer(cors)
+        .nest("/v1/pomodoro", router::pomodoro_routes().await)
+        .nest("/v1/user", router::user_information_routes().await)
+        .layer(cors)
         .with_state(app_state);
 
     Ok(app.into())
