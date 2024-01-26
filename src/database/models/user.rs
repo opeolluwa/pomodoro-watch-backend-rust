@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,6 +14,10 @@ pub struct UserInformation {
     pub password: String,
     pub email: String,
     pub occupation: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub is_verified: bool,
+    
 }
 
 impl UserInformation {
@@ -23,10 +28,26 @@ impl UserInformation {
             password: UserInformation::hash_password(password).await,
             email: email.to_string(),
             occupation: occupation.to_string().to_ascii_lowercase(),
+            created_at: chrono::Local::now().naive_local(),
+            updated_at: chrono::Local::now().naive_local(),
+            is_verified: false,
         }
     }
 
     async fn hash_password(password: &str) -> String {
         hash(password, DEFAULT_COST).unwrap()
     }
+}
+
+// A junction between the user and the otp table
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+#[derive(sqlx::FromRow)]
+pub struct UserAuth {
+    // pub id: Uuid,
+    pub email: String,
+    pub is_verified: bool,
+    pub user_id: Uuid,
+    pub otp: String,
+    pub created_at: NaiveDateTime,
 }
