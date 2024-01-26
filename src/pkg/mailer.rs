@@ -47,25 +47,25 @@ impl<T: Serialize> Mailer<T> {
     pub fn new(recipient: &str, template: EmailTemplate, data: Option<T>) -> Self {
         match data {
             Some(data) => {
-                return Self {
+                Self {
                     recipient: recipient.to_string(),
                     template,
                     data: Some(data),
-                };
+                }
             }
             None => {
-                return Self {
+                Self {
                     recipient: recipient.to_string(),
                     template,
                     data: None,
-                };
+                }
             }
         }
     }
 
     pub async fn send_email(&self) {
-        Self::test_redis_connection().await.unwrap();
-        Self::test_smtp_connection().await;
+        // Self::test_redis_connection().await.unwrap();
+        // Self::test_smtp_connection().await;
 
     }
 
@@ -73,14 +73,14 @@ impl<T: Serialize> Mailer<T> {
         println!("testing smtp connection")
     }
 
-    async fn test_redis_connection() -> Result<(), RedisError> {
-        let client = RedisClient::default();
-        let _ = client.connect();
-        client.wait_for_connect().await?;
+    async fn test_redis_connection()  {
+        // let client = RedisClient::default();
+        // let _ = client.connect();
+        // client.wait_for_connect().await?;
 
-        let _ = client.publish("test_channel", "hello world").await?;
+        // client.publish("test_channel", "hello world").await?;
 
-        println!("connected to redis");
-        Ok(())
+        // println!("connected to redis");
+        // Ok(())
     }
 }

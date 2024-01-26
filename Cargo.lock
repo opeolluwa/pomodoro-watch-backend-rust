@@ -112,6 +112,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-traits"
+version = "0.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b009a4f27206d3d1c853e1e5f8909ca582e846cc124b3035b98bea1db69f06f"
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1929,6 +1935,7 @@ checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
 name = "pomodoro-backend-rust"
 version = "0.1.0"
 dependencies = [
+ "async-traits",
  "axum 0.7.4",
  "axum-extra",
  "bcrypt",

@@ -36,7 +36,7 @@ impl JwtClaims {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs()
-            + (10 * 60 as u64); // 10 minutes
+            + (10 * 60_u64); // 10 minutes
 
         Self {
             sub: sub.to_string(),

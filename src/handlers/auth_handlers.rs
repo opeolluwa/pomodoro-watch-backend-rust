@@ -78,8 +78,8 @@ claim: JwtClaims,
 }
 
 pub async fn request_new_verification_token(
-    State(state): State<AppState>,
-    Json(payload): Json<NewVerificationTokenRequest>,
+    State(_state): State<AppState>,
+    Json(_payload): Json<NewVerificationTokenRequest>,
 ) -> impl IntoResponse {
 }
 
