@@ -1,8 +1,14 @@
-use crate::database::models::UserInformation;
-use crate::pkg::mailer::{EmailTemplate, Mailer};
-use crate::pkg::{
-    jwt::JwtClaims, ApiResponse, AppState, NewVerificationTokenRequest, SignupRequest,
+use crate::database::models::{
+    otp::Otp,
+    user::{UserAuth, UserInformation},
 };
+use crate::pkg::api::{
+    ApiResponse, NewVerificationTokenRequest, SignupRequest, VerifyEmailRequest,
+};
+use crate::pkg::email_templates::EmailTemplate;
+use crate::pkg::jwt::JwtClaims;
+use crate::pkg::mailer::Mailer;
+use crate::pkg::state::AppState;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -31,10 +37,18 @@ pub async fn sign_up(
     .fetch_one(&state.pool)
     .await;
 
+    
     match query {
         Ok(data) => {
+             let otp = Otp::new().save(&state.pool).await.unwrap();
+            // let Some(otp) = Otp::new().save(&state.pool).await.ok() else {
+            //     return Err((
+            //         StatusCode::BAD_REQUEST,
+            //         "failed to generate otp".to_string(),
+            //     ));
+            // };
             let jwt_token = JwtClaims::new(&data.email).gen_token();
-            Mailer::new(&data.email, EmailTemplate::VerifyEmail, Some(&data))
+            Mailer::new(&data.email, EmailTemplate::VerifyEmail, Some(otp))
                 .send_email()
                 .await;
 
@@ -52,29 +66,39 @@ pub async fn sign_up(
 
 pub async fn verify_email(
     State(state): State<AppState>,
-claim: JwtClaims,
-) -> Result<impl IntoResponse, (StatusCode, String)>{
-    let query = sqlx::query_as::<_, UserInformation>(
-        "SELECT * FROM user_information WHERE email = $1",
-    )
-    .bind(&claim.sub)
-    .fetch_one(&state.pool)
-    .await;
+    claim: JwtClaims,
+    Json(payload): Json<VerifyEmailRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let query =
+        sqlx::query_as::<_, UserAuth>("SELECT one_time_passwords.otp, one_time_passwords.created_at FROM one_time_passwords INNER JOIN user_information ON one_time_passwords.id = user_information.otp_id")
+            // .bind(&payload.otp)
+            .bind(&claim.sub)
+            .fetch_one(&state.pool)
+            .await;
 
     match query {
-        Ok(_) => {
-         
+        Ok(data) => {
+            // if data.is_verified {
+            //     return Err((
+            //         StatusCode::BAD_REQUEST,
+            //         "user account already verified".to_string(),
+            //     ));
+            // }
+
+            println!("{:#?}", data);
+
+     
+
             Ok((
                 StatusCode::CREATED,
                 Json(ApiResponse::new(
-                    None::<()>,
-                    "account verified successfully",
+                    json!({"message":"successfully sent verification email"}),
+                    "successfully sent verification email",
                 )),
             ))
         }
         Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
     }
-    
 }
 
 pub async fn request_new_verification_token(

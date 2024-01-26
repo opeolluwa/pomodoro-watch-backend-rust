@@ -1,6 +1,6 @@
 use crate::handlers::{auth_handlers, pomodoro::PomodoroHandlers, user::UserInformationHandler};
 
-use crate::pkg::AppState;
+use crate::pkg::state::AppState;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 
