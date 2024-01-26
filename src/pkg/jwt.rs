@@ -25,7 +25,7 @@ static KEYS: Lazy<Keys> = Lazy::new(|| {
 // JWT claims
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JwtClaims {
-   pub sub: String,
+    pub sub: String,
     exp: usize,
 }
 
@@ -78,7 +78,6 @@ pub enum AuthError {
     InvalidToken,
 }
 
-
 // implement IntoResponse for AuthError so we can use it as an Axum response type
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
@@ -94,7 +93,6 @@ impl IntoResponse for AuthError {
         (status, body).into_response()
     }
 }
-
 
 // implement FromRequestParts for Claims (the JWT struct)
 // FromRequestParts allows us to use Claims without consuming the request
@@ -112,8 +110,9 @@ where
             .await
             .map_err(|_| AuthError::InvalidToken)?;
         // Decode the user data
-        let token_data = decode::<JwtClaims>(bearer.token(), &KEYS.decoding, &Validation::default())
-            .map_err(|_| AuthError::InvalidToken)?;
+        let token_data =
+            decode::<JwtClaims>(bearer.token(), &KEYS.decoding, &Validation::default())
+                .map_err(|_| AuthError::InvalidToken)?;
 
         Ok(token_data.claims)
     }
