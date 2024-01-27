@@ -37,6 +37,17 @@ pub struct OtpRequest {
     pub otp: String,
 }
 
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPasswordRequest {
+    pub otp: String,
+    pub password: String,
+    pub confirm_password: String,
+}
+
+
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub message: String,
@@ -50,6 +61,14 @@ impl<T: Send + Clone> ApiResponse<T> {
             message: message.to_string(),
             data: Some(data),
             success: true,
+        }
+    }
+
+    pub fn err(message: &str) -> ApiResponse<()> {
+        ApiResponse {
+            message: message.to_string(),
+            data: Some(()),
+            success: false,
         }
     }
 }

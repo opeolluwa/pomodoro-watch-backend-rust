@@ -18,7 +18,7 @@ use serde_json::json;
 pub async fn sign_up(
     State(state): State<AppState>,
     Json(payload): Json<SignupRequest>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let new_user = UserInformation::new(
         &payload.full_name,
         &payload.password,
@@ -43,7 +43,9 @@ pub async fn sign_up(
             let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "failed to generate verification otp".to_string(),
+                    Json(ApiResponse::<UserInformation>::err(
+                        "failed to generate verification otp",
+                    )),
                 ));
             };
 
@@ -69,7 +71,10 @@ pub async fn sign_up(
                 )),
             ))
         }
-        Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
+        Err(err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<UserInformation>::err(&err.to_string())),
+        )),
     }
 }
 
@@ -78,7 +83,6 @@ pub async fn verify_email(
     claim: JwtClaims,
     Json(payload): Json<VerifyEmailRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    println!("hey {:#?}", &claim.sub);
     let query =
         sqlx::query_as::<_, UserAuth>("SELECT * FROM user_information FULL JOIN one_time_passwords ON user_information.otp_id = one_time_passwords.otp_id WHERE email = $1")
             .bind(&claim.sub)
@@ -127,13 +131,105 @@ pub async fn verify_email(
 }
 
 pub async fn request_new_verification_token(
-    State(_state): State<AppState>,
-    Json(_payload): Json<NewVerificationTokenRequest>,
-) -> impl IntoResponse {
+    State(state): State<AppState>,
+    Json(payload): Json<NewVerificationTokenRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    let query = sqlx::query_as::<_, UserInformation>("SELECT * FROM user_information")
+        .bind(&payload.email)
+        .fetch_one(&state.pool)
+        .await;
+
+    match query {
+        Ok(data) => {
+            // let otp = Otp::new().save(&state.pool, &data.id).await.unwrap();
+            let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiResponse::new((), "failed to generate verification otp")),
+                ));
+            };
+
+            // update the user_information for which the token was generated
+            let _ = sqlx::query_as::<_, UserInformation>(
+                "UPDATE user_information SET otp_id = $1 WHERE id = $2",
+            )
+            .bind(&otp.otp_id)
+            .bind(&data.id)
+            .fetch_one(&state.pool)
+            .await;
+
+            let jwt_token = JwtClaims::new(&data.email).gen_token();
+            Mailer::new(&data.email, EmailTemplate::VerifyEmail, Some(otp))
+                .send_email()
+                .await;
+
+            Ok((
+                StatusCode::OK,
+                Json(ApiResponse::new(
+                    json!({"token":jwt_token}),
+                    "successfully created user accout",
+                )),
+            ))
+        }
+
+        Err(err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<UserInformation>::err(&err.to_string())),
+        )),
+    }
 }
 
-pub async fn password_reset() {}
-pub async fn confirm_password_reset_token() {}
+pub async fn password_reset(
+    State(state): State<AppState>,
+    Json(payload): Json<NewVerificationTokenRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    let query = sqlx::query_as::<_, UserInformation>("SELECT * FROM user_information")
+        .bind(&payload.email)
+        .fetch_one(&state.pool)
+        .await;
+
+    match query {
+        Ok(data) => {
+            let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ApiResponse::new((), "failed to generate verification otp")),
+                ));
+            };
+
+            // update the user_information for which the token was generated
+            let _ = sqlx::query_as::<_, UserInformation>(
+                "UPDATE user_information SET otp_id = $1 WHERE id = $2",
+            )
+            .bind(&otp.otp_id)
+            .bind(&data.id)
+            .fetch_one(&state.pool)
+            .await;
+
+            let jwt_token = JwtClaims::new(&data.email).gen_token();
+            Mailer::new(&data.email, EmailTemplate::VerifyEmail, Some(otp))
+                .send_email()
+                .await;
+
+            Ok((
+                StatusCode::OK,
+                Json(ApiResponse::new(
+                    json!({"token":jwt_token}),
+                    "successfully generated password reset token, see your email for further instructions",
+                )),
+            ))
+        }
+
+        Err(err) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<UserInformation>::err(&err.to_string())),
+        )),
+    }
+}
+
+pub async fn confirm_password_reset_token(
+    
+) {}
 pub async fn set_new_password() {}
 pub async fn login() {}
 pub async fn logout() {}
