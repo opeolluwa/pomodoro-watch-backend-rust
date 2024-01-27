@@ -105,11 +105,21 @@ pub async fn verify_email(
                 ));
             }
 
+            // set the user account to verified
+            let _ = sqlx::query_as::<_, UserAuth>(
+                "UPDATE user_information SET is_verified = $1 WHERE id = $2",
+            )
+            .bind(true)
+            .bind(&data.id)
+            .fetch_one(&state.pool)
+            .await;
+
             Ok((
                 StatusCode::CREATED,
                 Json(ApiResponse::new(
                     None::<UserAuth>,
-                    "successfully sent verification email",               )),
+                    "successfully sent verification email",
+                )),
             ))
         }
         Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
