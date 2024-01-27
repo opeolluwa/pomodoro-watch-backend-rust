@@ -4,9 +4,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+pub static OTP_VALIDITY: u64 = 5 * 60; // 5 minutes
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Otp {
-    pub id: Uuid,
+    pub otp_id: Uuid,
     pub otp: String,
     pub created_at: NaiveDateTime,
 }
@@ -14,7 +16,7 @@ pub struct Otp {
 impl Otp {
     pub fn new() -> Self {
         Self {
-            id: Uuid::new_v4(),
+            otp_id: Uuid::new_v4(),
             otp: Self::generate_otp().to_string(),
             created_at: chrono::Local::now().naive_local(),
         }
@@ -25,16 +27,16 @@ impl Otp {
         nanoid!(6, &alphabet)
     }
 
-    pub async fn save(&self, pool: &PgPool) -> Result<Self, sqlx::Error> {
-        let query = sqlx::query_as::<_, Otp>(
-            "INSERT INTO one_time_passwords (id, otp, created_at) VALUES ($1, $2, $3) RETURNING *",
+    pub async fn save(&self, pool: &PgPool, user_id: &Uuid) -> Result<Self, sqlx::Error> {
+        let otp = sqlx::query_as::<_, Otp>(
+            "INSERT INTO one_time_passwords (otp_id, otp, created_at) VALUES ($1, $2, $3) RETURNING *",
         )
-        .bind(self.id)
+        .bind(self.otp_id)
         .bind(&self.otp)
         .bind(self.created_at)
         .fetch_one(pool)
         .await;
 
-        query
+        otp
     }
 }

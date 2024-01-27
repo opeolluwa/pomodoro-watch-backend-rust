@@ -17,7 +17,6 @@ pub struct UserInformation {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub is_verified: bool,
-    
 }
 
 impl UserInformation {
@@ -44,10 +43,10 @@ impl UserInformation {
 #[serde(rename_all = "camelCase")]
 #[derive(sqlx::FromRow)]
 pub struct UserAuth {
-    // pub id: Uuid,
+    pub id: Uuid,
     pub email: String,
     pub is_verified: bool,
-    pub user_id: Uuid,
+    // pub user_id: Uuid,
     pub otp: String,
     pub created_at: NaiveDateTime,
 }
