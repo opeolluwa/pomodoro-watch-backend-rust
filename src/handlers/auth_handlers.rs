@@ -1,5 +1,5 @@
 use crate::database::models::{
-    otp::Otp,
+    otp::{Otp, OTP_VALIDITY},
     user::{UserAuth, UserInformation},
 };
 use crate::pkg::api::{
@@ -37,16 +37,25 @@ pub async fn sign_up(
     .fetch_one(&state.pool)
     .await;
 
-    
     match query {
         Ok(data) => {
-             let otp = Otp::new().save(&state.pool).await.unwrap();
-            // let Some(otp) = Otp::new().save(&state.pool).await.ok() else {
-            //     return Err((
-            //         StatusCode::BAD_REQUEST,
-            //         "failed to generate otp".to_string(),
-            //     ));
-            // };
+            // let otp = Otp::new().save(&state.pool, &data.id).await.unwrap();
+            let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "failed to generate verification otp".to_string(),
+                ));
+            };
+
+            // update the user_information for which the token was generated
+            let _ = sqlx::query_as::<_, UserInformation>(
+                "UPDATE user_information SET otp_id = $1 WHERE id = $2",
+            )
+            .bind(&otp.otp_id)
+            .bind(&data.id)
+            .fetch_one(&state.pool)
+            .await;
+
             let jwt_token = JwtClaims::new(&data.email).gen_token();
             Mailer::new(&data.email, EmailTemplate::VerifyEmail, Some(otp))
                 .send_email()
@@ -69,32 +78,38 @@ pub async fn verify_email(
     claim: JwtClaims,
     Json(payload): Json<VerifyEmailRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    println!("hey {:#?}", &claim.sub);
     let query =
-        sqlx::query_as::<_, UserAuth>("SELECT one_time_passwords.otp, one_time_passwords.created_at FROM one_time_passwords INNER JOIN user_information ON one_time_passwords.id = user_information.otp_id")
-            // .bind(&payload.otp)
+        sqlx::query_as::<_, UserAuth>("SELECT * FROM user_information FULL JOIN one_time_passwords ON user_information.otp_id = one_time_passwords.otp_id WHERE email = $1")
             .bind(&claim.sub)
             .fetch_one(&state.pool)
             .await;
 
     match query {
         Ok(data) => {
-            // if data.is_verified {
-            //     return Err((
-            //         StatusCode::BAD_REQUEST,
-            //         "user account already verified".to_string(),
-            //     ));
-            // }
+            if data.is_verified {
+                return Err((
+                    StatusCode::CONFLICT,
+                    "user account already verified".to_string(),
+                ));
+            }
 
-            println!("{:#?}", data);
-
-     
+            // confirm the otp sent to the user and the validity time
+            if payload.otp != data.otp
+                || data.created_at + chrono::Duration::minutes(OTP_VALIDITY.try_into().unwrap())
+                    < chrono::Local::now().naive_local()
+            {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    "invalid otp or otp expired".to_string(),
+                ));
+            }
 
             Ok((
                 StatusCode::CREATED,
                 Json(ApiResponse::new(
-                    json!({"message":"successfully sent verification email"}),
-                    "successfully sent verification email",
-                )),
+                    None::<UserAuth>,
+                    "successfully sent verification email",               )),
             ))
         }
         Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
