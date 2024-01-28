@@ -2,10 +2,10 @@ use crate::database::models::{
     otp::{Otp, OTP_VALIDITY},
     user::{UserAuth, UserInformation},
 };
-use crate::pkg::api::{
-    ApiResponse, NewVerificationTokenRequest, SignupRequest, VerifyEmailRequest,
-};
+use crate::pkg::http_response::ApiResponse;
+
 use crate::pkg::email_templates::EmailTemplate;
+use crate::pkg::http_request::auth as http_request;
 use crate::pkg::jwt::JwtClaims;
 use crate::pkg::mailer::Mailer;
 use crate::pkg::state::AppState;
@@ -13,11 +13,11 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use serde_json::json;
+use serde_json::{json, Value};
 
 pub async fn sign_up(
     State(state): State<AppState>,
-    Json(payload): Json<SignupRequest>,
+    Json(payload): Json<http_request::Signup>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let new_user = UserInformation::new(
         &payload.full_name,
@@ -40,7 +40,7 @@ pub async fn sign_up(
     match query {
         Ok(data) => {
             // let otp = Otp::new().save(&state.pool, &data.id).await.unwrap();
-            let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
+            let Some(otp) = Otp::new().save(&state.pool).await.ok() else {
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ApiResponse::<UserInformation>::err(
@@ -81,7 +81,7 @@ pub async fn sign_up(
 pub async fn verify_email(
     State(state): State<AppState>,
     claim: JwtClaims,
-    Json(payload): Json<VerifyEmailRequest>,
+    Json(payload): Json<http_request::VerifyEmail>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let query =
         sqlx::query_as::<_, UserAuth>("SELECT * FROM user_information FULL JOIN one_time_passwords ON user_information.otp_id = one_time_passwords.otp_id WHERE email = $1")
@@ -132,7 +132,7 @@ pub async fn verify_email(
 
 pub async fn request_new_verification_token(
     State(state): State<AppState>,
-    Json(payload): Json<NewVerificationTokenRequest>,
+    Json(payload): Json<http_request::NewVerificationToken>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let query = sqlx::query_as::<_, UserInformation>("SELECT * FROM user_information")
         .bind(&payload.email)
@@ -142,7 +142,7 @@ pub async fn request_new_verification_token(
     match query {
         Ok(data) => {
             // let otp = Otp::new().save(&state.pool, &data.id).await.unwrap();
-            let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
+            let Some(otp) = Otp::new().save(&state.pool).await.ok() else {
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ApiResponse::new((), "failed to generate verification otp")),
@@ -181,7 +181,7 @@ pub async fn request_new_verification_token(
 
 pub async fn password_reset(
     State(state): State<AppState>,
-    Json(payload): Json<NewVerificationTokenRequest>,
+    Json(payload): Json<http_request::NewVerificationToken>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
     let query = sqlx::query_as::<_, UserInformation>("SELECT * FROM user_information")
         .bind(&payload.email)
@@ -190,7 +190,7 @@ pub async fn password_reset(
 
     match query {
         Ok(data) => {
-            let Some(otp) = Otp::new().save(&state.pool, &data.id).await.ok() else {
+            let Some(otp) = Otp::new().save(&state.pool).await.ok() else {
                 return Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(ApiResponse::new((), "failed to generate verification otp")),
@@ -228,9 +228,124 @@ pub async fn password_reset(
 }
 
 pub async fn confirm_password_reset_token(
-    
-) {}
-pub async fn set_new_password() {}
-pub async fn login() {}
-pub async fn logout() {}
-pub async fn refresh_token() {}
+    claims: JwtClaims,
+    State(state): State<AppState>,
+    Json(payload): Json<http_request::ConfirmPasswordReset>,
+) -> Result<impl IntoResponse, (StatusCode, Json<ApiResponse<()>>)> {
+    let query = sqlx::query_as::<_, UserAuth>("SELECT * FROM user_information FULL JOIN one_time_passwords ON user_information.otp_id = one_time_passwords.otp_id WHERE email = $1").bind(&claims.sub).fetch_one(&state.pool).await;
+
+    match query {
+        Ok(data) => {
+            if payload.otp != data.otp
+                || data.created_at + chrono::Duration::minutes(OTP_VALIDITY.try_into().unwrap())
+                    < chrono::Local::now().naive_local()
+            {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ApiResponse::<UserInformation>::err(
+                        "invalid otp or otp expired",
+                    )),
+                ));
+            }
+
+            let jwt_token = JwtClaims::new(&claims.sub).gen_token();
+
+            Ok((
+                StatusCode::OK,
+                Json(ApiResponse::new(
+                    json!({"token":jwt_token}),
+                    "OTP successfully verifried",
+                )),
+            ))
+        }
+
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse::<()>::err(&e.to_string())),
+            ))
+        }
+    }
+}
+pub async fn set_new_password(
+    claims: JwtClaims,
+    State(state): State<AppState>,
+    Json(payload): Json<http_request::NewPassword>,
+) -> Result<(StatusCode, Json<ApiResponse<()>>), (StatusCode, Json<ApiResponse<()>>)> {
+    if &payload.new_password.trim() != &payload.confirm_password.trim() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiResponse::<UserInformation>::err(
+                "passwords do not match",
+            )),
+        ));
+    }
+
+    let Some(_) = UserInformation::fetch(&claims.sub, &state.pool).await.ok() else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ApiResponse::<UserInformation>::err(
+                "passwords do not match",
+            )),
+        ));
+    };
+
+    let Some(_) =
+        UserInformation::update_password(&claims.sub, &payload.new_password.trim(), &state.pool)
+            .await
+            .ok()
+    else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ApiResponse::<UserInformation>::err(
+                "error whhile updating password, please retry after some time",
+            )),
+        ));
+    };
+
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::new((), "password updated successfully")),
+    ))
+}
+pub async fn login(
+    State(state): State<AppState>,
+    Json(payload): Json<http_request::Login>,
+) -> Result<(StatusCode, Json<ApiResponse<Value>>), (StatusCode, Json<ApiResponse<()>>)> {
+    let Some(user) = UserInformation::fetch(&payload.email, &state.pool)
+        .await
+        .ok()
+    else {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ApiResponse::<UserInformation>::err(
+                "invalid username or password",
+            )),
+        ));
+    };
+
+    let is_correct_password =
+        UserInformation::compare_password(&payload.password.trim(), &user.password).await;
+
+    if !is_correct_password {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse::<UserInformation>::err(
+                "invalid email or password",
+            )),
+        ));
+    }
+
+    let jwt_token = JwtClaims::new(&user.email).gen_token();
+    Ok((
+        StatusCode::OK,
+        Json(ApiResponse::new(
+            json!({"jwt":jwt_token}),
+            "user successfully logged in",
+        )),
+    ))
+}
+pub async fn logout(_claims: JwtClaims, State(
+    _state): State<AppState>) {}
+
+pub async fn refresh_token(_claims: JwtClaims, State(_state): State<AppState>) {}
