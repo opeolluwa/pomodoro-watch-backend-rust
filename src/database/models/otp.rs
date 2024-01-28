@@ -27,7 +27,7 @@ impl Otp {
         nanoid!(6, &alphabet)
     }
 
-    pub async fn save(&self, pool: &PgPool, user_id: &Uuid) -> Result<Self, sqlx::Error> {
+    pub async fn save(&self, pool: &PgPool) -> Result<Self, sqlx::Error> {
         let otp = sqlx::query_as::<_, Otp>(
             "INSERT INTO one_time_passwords (otp_id, otp, created_at) VALUES ($1, $2, $3) RETURNING *",
         )

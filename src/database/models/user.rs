@@ -1,8 +1,8 @@
+use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use uuid::Uuid;
-
-use bcrypt::{hash, DEFAULT_COST};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -35,6 +35,37 @@ impl UserInformation {
 
     async fn hash_password(password: &str) -> String {
         hash(password, DEFAULT_COST).unwrap()
+    }
+
+    pub async fn compare_password(password: &str, hash: &str) -> bool {
+        verify(password, hash).unwrap()
+    }
+
+    pub async fn fetch(email: &str, pool: &PgPool) -> Result<UserInformation, sqlx::Error> {
+        let query = sqlx::query_as("SELECT * FROM user_information WHERE email = $1")
+            .bind(email)
+            .fetch_one(pool)
+            .await;
+
+        query
+    }
+
+    pub async fn update_password(
+        email: &str,
+        new_password: &str,
+        pool: &PgPool,
+    ) -> Result<UserInformation, sqlx::Error> {
+        let new_hash = Self::hash_password(new_password).await;
+
+        let query = sqlx::query_as(
+            "UPDATE user_information SET password = $1 WHERE email = $2 RETURNING *",
+        )
+        .bind(new_hash)
+        .bind(email)
+        .fetch_one(pool)
+        .await;
+
+        query
     }
 }
 
