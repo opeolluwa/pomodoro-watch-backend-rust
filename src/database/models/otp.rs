@@ -28,15 +28,15 @@ impl Otp {
     }
 
     pub async fn save(&self, pool: &PgPool) -> Result<Self, sqlx::Error> {
-        let otp = sqlx::query_as::<_, Otp>(
+        
+
+        sqlx::query_as::<_, Otp>(
             "INSERT INTO one_time_passwords (otp_id, otp, created_at) VALUES ($1, $2, $3) RETURNING *",
         )
         .bind(self.otp_id)
         .bind(&self.otp)
         .bind(self.created_at)
         .fetch_one(pool)
-        .await;
-
-        otp
+        .await
     }
 }

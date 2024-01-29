@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
 use super::email_templates::EmailTemplate;
-use lettre::message::header::ContentType;
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
+
+
+
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -30,7 +30,8 @@ impl<T: Serialize + Debug> Mailer<T> {
     }
 
     pub async fn send_email(&self) {
-        println!("sending email, {:?}", self);
+      Self::test_redis_connection().await;
+      Self::test_smtp_connection().await;
 
         // Self::test_redis_connection().await.unwrap();
         // Self::test_smtp_connection().await;

@@ -53,8 +53,8 @@ pub async fn sign_up(
             let _ = sqlx::query_as::<_, UserInformation>(
                 "UPDATE user_information SET otp_id = $1 WHERE id = $2",
             )
-            .bind(&otp.otp_id)
-            .bind(&data.id)
+            .bind(otp.otp_id)
+            .bind(data.id)
             .fetch_one(&state.pool)
             .await;
 
@@ -114,7 +114,7 @@ pub async fn verify_email(
                 "UPDATE user_information SET is_verified = $1 WHERE id = $2",
             )
             .bind(true)
-            .bind(&data.id)
+            .bind(data.id)
             .fetch_one(&state.pool)
             .await;
 
@@ -153,8 +153,8 @@ pub async fn request_new_verification_token(
             let _ = sqlx::query_as::<_, UserInformation>(
                 "UPDATE user_information SET otp_id = $1 WHERE id = $2",
             )
-            .bind(&otp.otp_id)
-            .bind(&data.id)
+            .bind(otp.otp_id)
+            .bind(data.id)
             .fetch_one(&state.pool)
             .await;
 
@@ -201,8 +201,8 @@ pub async fn password_reset(
             let _ = sqlx::query_as::<_, UserInformation>(
                 "UPDATE user_information SET otp_id = $1 WHERE id = $2",
             )
-            .bind(&otp.otp_id)
-            .bind(&data.id)
+            .bind(otp.otp_id)
+            .bind(data.id)
             .fetch_one(&state.pool)
             .await;
 
@@ -260,7 +260,7 @@ pub async fn confirm_password_reset_token(
         }
 
         Err(e) => {
-            return Err((
+            Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse::<()>::err(&e.to_string())),
             ))
@@ -272,7 +272,7 @@ pub async fn set_new_password(
     State(state): State<AppState>,
     Json(payload): Json<http_request::NewPassword>,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), (StatusCode, Json<ApiResponse<()>>)> {
-    if &payload.new_password.trim() != &payload.confirm_password.trim() {
+    if payload.new_password.trim() != payload.confirm_password.trim() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ApiResponse::<UserInformation>::err(
@@ -291,7 +291,7 @@ pub async fn set_new_password(
     };
 
     let Some(_) =
-        UserInformation::update_password(&claims.sub, &payload.new_password.trim(), &state.pool)
+        UserInformation::update_password(&claims.sub, payload.new_password.trim(), &state.pool)
             .await
             .ok()
     else {
@@ -325,7 +325,7 @@ pub async fn login(
     };
 
     let is_correct_password =
-        UserInformation::compare_password(&payload.password.trim(), &user.password).await;
+        UserInformation::compare_password(payload.password.trim(), &user.password).await;
 
     if !is_correct_password {
         return Err((

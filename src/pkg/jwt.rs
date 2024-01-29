@@ -48,11 +48,11 @@ impl JwtClaims {
         encode(&Header::default(), self, &KEYS.encoding).unwrap()
     }
 
-    pub fn extract_token(token: &str) -> Result<Self, String> {
-        decode::<Self>(token, &KEYS.decoding, &Validation::default())
-            .map(|data| data.claims)
-            .map_err(|e| e.to_string())
-    }
+    // pub fn extract_token(token: &str) -> Result<Self, String> {
+    //     decode::<Self>(token, &KEYS.decoding, &Validation::default())
+    //         .map(|data| data.claims)
+    //         .map_err(|e| e.to_string())
+    // }
 }
 
 // encoding/decoding keys - set in the static `once_cell` above

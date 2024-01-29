@@ -28,8 +28,8 @@ async fn axum(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::Shut
     let app = Router::new()
         .route("/", get(handlers::health_check))
         .nest("/v1/auth", router::auth_routes().await)
-        // .nest("/v1/pomodoro", router::pomodoro_routes().await)
-        // .nest("/v1/user", router::user_information_routes().await)
+        .nest("/v1/pomodoro", router::pomodoro_routes().await)
+        .nest("/v1/user", router::user_information_routes().await)
         .layer(cors)
         .with_state(app_state);
 

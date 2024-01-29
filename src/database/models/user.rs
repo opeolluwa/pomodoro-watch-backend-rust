@@ -42,12 +42,12 @@ impl UserInformation {
     }
 
     pub async fn fetch(email: &str, pool: &PgPool) -> Result<UserInformation, sqlx::Error> {
-        let query = sqlx::query_as("SELECT * FROM user_information WHERE email = $1")
+        
+
+        sqlx::query_as("SELECT * FROM user_information WHERE email = $1")
             .bind(email)
             .fetch_one(pool)
-            .await;
-
-        query
+            .await
     }
 
     pub async fn update_password(
@@ -57,15 +57,15 @@ impl UserInformation {
     ) -> Result<UserInformation, sqlx::Error> {
         let new_hash = Self::hash_password(new_password).await;
 
-        let query = sqlx::query_as(
+        
+
+        sqlx::query_as(
             "UPDATE user_information SET password = $1 WHERE email = $2 RETURNING *",
         )
         .bind(new_hash)
         .bind(email)
         .fetch_one(pool)
-        .await;
-
-        query
+        .await
     }
 }
 
